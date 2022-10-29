@@ -81,18 +81,18 @@ kalloc(void)
   return (void*)r;
 }
 
-// uint64
-// freemem(void){
-//   uint64 free_bite = 0;
-//   struct  run *run;
+uint64
+freemem(void){
+  uint64 free_bite = 0;
+  struct  run *run;
 
-//   acquire(&kmem.lock);
-//   run = kmem.freelist;
-//   while(run->next){
-//     free_bite += PGSIZE;
-//     run = run->next;
-//   }
-//   release(&kmem.lock);
+  acquire(&kmem.lock);
+  run = kmem.freelist;
+  while(run->next){
+    free_bite += PGSIZE;
+    run = run->next;
+  }
+  release(&kmem.lock);
 
-//   return free_bite;
-// }
+  return free_bite;
+}
