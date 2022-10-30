@@ -83,16 +83,16 @@ kalloc(void)
 
 uint64
 freemem(void){
-  uint64 free_bite = 0;
-  struct  run *run;
+  uint64 free_bite = 0;// 空きメモリ(bite)
+  struct  run *run;// 現在参照している空きメモリリスト
 
-  acquire(&kmem.lock);
+  acquire(&kmem.lock);//　ロック
   run = kmem.freelist;
-  while(run->next){
+  while(run){
     free_bite += PGSIZE;
     run = run->next;
   }
-  release(&kmem.lock);
+  release(&kmem.lock);// ロック解除
 
   return free_bite;
 }
