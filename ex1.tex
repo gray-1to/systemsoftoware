@@ -1,0 +1,175 @@
+\documentclass[a4j,12pt]{jreport}
+\usepackage{listings} %ソースコード表示用
+\usepackage{color}
+
+\lstset{
+      language=[Sharp]C,
+      basicstyle={\small},
+      identifierstyle={\small},
+      commentstyle={\small\ttfamily \color[rgb]{0,0.5,0}},
+      keywordstyle={\small\bfseries \color[rgb]{0,0,0.8}},
+      ndkeywordstyle={\small},
+      stringstyle={\small\ttfamily \color[rgb]{0,0,1}},
+      frame={tb},
+      breaklines=true,
+      columns=[l]{fullflexible},
+      numbers=left,
+      xrightmargin=0zw,
+      xleftmargin=2zw,
+      numberstyle={\scriptsize},
+      stepnumber=1,
+      morecomment=[l]{//}
+}
+
+\title{システムソフトウェア　課題1}
+\author{20B30100　伊藤悠馬}
+\date{\today}
+\begin{document}
+\maketitle
+
+\chapter{sys\_freemem実装レポート}
+
+\section{システムコール sys\_freemem の作成方針，使用したアルゴリズム等}
+
+メモリ管理を行なっているkcalloc.cでカーネルのフリーメモリリストのリスト要素をカウントし、定数として宣言されている1ページあたりのバイト数をかけることをもって求める方針とした。
+
+\section{どのファイルを何のためにどう変更したか}
+
+\begin{enumerate}
+
+      \item kernel/kalloc.c
+            \begin{lstlisting}[basicstyle=\ttfamily\footnotesize, firstnumber=0][htbp]
+                  uint64
+                  freemem(void){
+                  uint64 free_bite = 0;// 空きメモリ(bite)
+                  struct  run *run;// 現在参照している空きメモリリスト
+                  
+                  acquire(&kmem.lock);//　ロック
+                  run = kmem.freelist;
+                  while(run){
+                  free_bite += PGSIZE;
+                  run = run->next;
+                  }
+                  release(&kmem.lock);// ロック解除
+                  
+                  return free_bite;
+                  }
+            \end{lstlisting}
+
+            freemem()の定義本体。kmemをロックすることで他のプロセスがメモリの確保、解放を行なっている場合も正しく動作をすることができる。
+
+            メモリのページ数の計測はkmem.freelistの要素数をカウントすることで行い、それにページ一つのバイト数をかけることでメモリの空き容量(bite)を求めている。
+
+      \item kernel/syscall.c
+            \begin{lstlisting}[basicstyle=\ttfamily\footnotesize, firstnumber=0][htbp]
+                  [SYS_mkdir]   sys_mkdir,
+                  [SYS_close]   sys_close,
+                  [SYS_getppid] sys_getppid,
+                  [SYS_freemem] freemem,
+                  
+            \end{lstlisting}
+
+            システムコール番号と関数を結びつける配列にfreememを追加。
+
+      \item kernel/syscall.h
+            \begin{lstlisting}[basicstyle=\ttfamily\footnotesize, firstnumber=0][htbp]
+                  #define SYS_freemem 23
+            \end{lstlisting}
+
+            システムコール番号を割り当てる。
+
+      \item user/freememtest.c
+            \begin{lstlisting}[basicstyle=\ttfamily\footnotesize, firstnumber=0][htbp]
+                  #include "kernel/types.h"
+                  #include "user/user.h"
+                  int main() {
+                  printf("%l\n", freemem()); 
+                  sbrk(1);
+                  printf("%l\n", freemem()); 
+                  sbrk(4095);
+                  printf("%l\n", freemem()); 
+                  sbrk(1);
+                  printf("%l\n", freemem()); 
+                  sbrk(-4096); 
+                  printf("%l\n", freemem());
+                  sbrk(-1);
+                  printf("%l\n", freemem()); 
+                  exit(0);
+                  }
+            \end{lstlisting}
+
+            freemem()をテストするためのfreemem()を使ったプログラム。
+
+      \item user/user.h
+            \begin{lstlisting}[basicstyle=\ttfamily\footnotesize, firstnumber=0][htbp]
+                  int freemem(void);
+            \end{lstlisting}
+
+            user.hに宣言を記載。
+
+      \item user/usys.pl
+            \begin{lstlisting}[basicstyle=\ttfamily\footnotesize, firstnumber=0][htbp]
+                  entry("freemem");
+            \end{lstlisting}
+
+            アセンブリ言語での各関数のラベル定義部分にfreememmを追加
+
+      \item Makefile
+            \begin{lstlisting}[basicstyle=\ttfamily\footnotesize, firstnumber=0][htbp]
+                  UPROGS=\
+                        ...
+                        $U/_freememtest\
+            \end{lstlisting}
+
+            makefileにfreemem用のテストを追加
+
+\end{enumerate}
+
+\section{テストプログラムの実行結果と，なぜそのような結果になったかの説明}
+\begin{enumerate}
+      \item 実行結果
+            \begin{lstlisting}[basicstyle=\ttfamily\footnotesize, firstnumber=0][htbp]
+                  $ freememtest
+                        133382144
+                        133378048
+                        133378048
+                        133373952
+                        133378048
+                        133382144
+            \end{lstlisting}
+
+      \item 結果の考察
+            今回のテストプログラムではsbrk()を使っているがこれは空きメモリから引数で指定したバイト数だけ確保するというものである。始めに空きメモリ容量を表示したのち、sbrk(1);で1バイトを確保する。しかしこの時ページ単位でメモリを確保する性質上、1ページ4096バイトが一括で確保される。そのため2回目に空きメモリ容量を表示するタイミングでは始めの空きメモリ容量から4096バイト少ない値となっている。
+
+            次にsbrk(4095);を実行した際には4095バイトが確保されるが、sbrk(1);で確保したページで賄えるため新たにメモリが確保されることはない。そのため3回目の空きメモリ容量表示では前回と同じになっている。
+
+            次にsbrk(1);とすると空いているページがないため新しく1ページを確保することで、4回目の空きメモリ容量表示では4096バイト減った値となっている。
+
+            ここでsbrk(-4096);として1ページ分解放することで、空き容量が1ページ分増え、5回目の空きメモリ容量表示では前回より4096バイト増えた値となっている。
+
+            そしてsbrk(-1);とすることで上記で確保したメモリの最後の1バイトが解放され、最後の空きメモリ表示では最初と同じバイト数となっている。
+\end{enumerate}
+
+
+\section{使用したPC環境}
+\begin{enumerate}
+      \item CPU：1.4 GHz クアッドコアIntel Core i5
+      \item メモリ：8 GB 2133 MHz LPDDR3
+      \item ホストOS：macOS Monterey バージョン 12.6
+      \item 実行環境：授業で使用しているDocker
+\end{enumerate}
+
+\section{参考にした書籍やサイト(URL)}
+\begin{enumerate}
+      \item sbrk(2) manual page：https://nxmnpg.lemoda.net/2/sbrk
+      \item xv6: シンプルで Unix 風な教育用オペレーティングシステム：https://www.sugawara-lab.jp/fig/xv6-riscv-jpn.pdf
+\end{enumerate}
+
+
+\section{本課題によって得られた知見}
+\LaTeX の環境構築をすることができ、texの自動コンパイルを行うことができた。
+
+カーネル用のメモリの使い方、ページについて理解が深められた。
+
+
+\end{document}
