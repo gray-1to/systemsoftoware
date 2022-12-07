@@ -88,6 +88,7 @@ sys_write(void)
   
   argaddr(1, &p);
   argint(2, &n);
+  // TODO:ex1.2は以下をfが書き込み先ファイルになるように　f->typeをFD_PIPEにするか検討 kernel/file.c/filewrite参照
   if(argfd(0, 0, &f) < 0)
     return -1;
 
@@ -300,7 +301,7 @@ create(char *path, short type, short major, short minor)
   iunlockput(dp);
   return 0;
 }
-
+ 
 uint64
 sys_open(void)
 {
@@ -354,6 +355,7 @@ sys_open(void)
     f->major = ip->major;
   } else {
     f->type = FD_INODE;
+    // TODO:おそらくO_APPEND時にはf->offを適切にセットする
     f->off = 0;
   }
   f->ip = ip;
@@ -362,6 +364,10 @@ sys_open(void)
 
   if((omode & O_TRUNC) && ip->type == T_FILE){
     itrunc(ip);
+  }
+
+  if((omode & O_APPEND) && ip->type == T_FILE){
+    f->off = ip->size;
   }
 
   iunlock(ip);

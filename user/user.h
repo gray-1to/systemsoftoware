@@ -40,4 +40,4 @@ int atoi(const char*);
 int memcmp(const void *, const void *, uint);
 void *memcpy(void *, const void *, uint);
 int getppid(void);
-uint64 freemem(void);
+int freemem(void);

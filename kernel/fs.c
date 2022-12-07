@@ -689,7 +689,7 @@ namei(char *path)
   char name[DIRSIZ];
   return namex(path, 0, name);
 }
-
+ 
 struct inode*
 nameiparent(char *path, char *name)
 {

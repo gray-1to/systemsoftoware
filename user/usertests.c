@@ -420,6 +420,42 @@ truncate3(char *s)
 }
   
 
+void 
+appendtest(char *s){
+  char buffer[64];
+
+  unlink("appendfile");
+  
+  int fd = open("appendfile", O_CREATE | O_WRONLY | O_TRUNC);
+  write(fd, "hello", 5);
+  close(fd);
+
+  int fd2 = open("appendfile", O_RDONLY);
+  int file_length2 = read(fd2, buffer, sizeof(buffer));
+  if(file_length2 != 5){
+    printf("appendtest error: file append failed. file size is %d. file is %s\n", file_length2, buffer);
+    close(fd2);
+    exit(1);
+  }
+  close(fd2);
+
+  int fd3 = open("appendfile", O_WRONLY | O_APPEND);
+  write(fd3, "banana", 6);
+  close(fd3);
+
+  int fd4 = open("appendfile", O_RDONLY);
+  int file_length4 = read(fd4, buffer, sizeof(buffer));
+  if(file_length4 != 11){
+    printf("appendtest error: file read failed. file size is %d. file is %s\n", file_length4, buffer);
+    close(fd4);
+    exit(1);
+  }
+  close(fd4);
+
+  unlink("appendfile");
+}
+
+
 // does chdir() call iput(p->cwd) in a transaction?
 void
 iputtest(char *s)
@@ -2584,6 +2620,7 @@ struct test {
   {truncate1, "truncate1"},
   {truncate2, "truncate2"},
   {truncate3, "truncate3"},
+  {appendtest, "appendtest"},
   {openiputtest, "openiput"},
   {exitiputtest, "exitiput"},
   {iputtest, "iput"},
