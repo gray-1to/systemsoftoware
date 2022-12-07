@@ -509,3 +509,52 @@ sys_pipe(void)
   }
   return 0;
 }
+
+// change offset in fd
+// fd is target file description
+// set offset from whence(SEEK_SET:from head, SEEK_CUR:from current offset, SEEK_END:from tail)
+uint64
+sys_lseek(void) {
+    struct proc *my_proc = myproc();
+    struct file *f;
+
+    int fd, offset, whence;
+    argint(0, &fd);
+    argint(1, &offset);
+    argint(2, &whence);
+
+    // invalid fd
+    if (fd < 0 || fd >= NOFILE || (f = my_proc->ofile[fd]) == 0)
+        return -1;
+
+    if (f->type == FD_INODE) {
+        ilock(f->ip);
+        switch(whence){
+          case SEEK_SET:
+            f->off = offset;
+            break;
+          case SEEK_CUR:
+            f->off += offset;
+            if(f->ip->size < f->off){
+              f->ip->size = f->off;
+              // char blank[4096] = "";
+              // write(f, blank, f->off - f->ip->size);
+            }
+            break;
+          case SEEK_END:
+            f->off = f->ip->size + offset;
+            if(f->off < 0){
+              iunlock(f->ip);
+              return -1;
+            }
+            break;
+          default:
+            iunlock(f->ip);
+            return -1;
+        }
+        iunlock(f->ip);
+        return f->off;
+    }else{
+      return -1;
+    }
+}

@@ -41,3 +41,4 @@ int memcmp(const void *, const void *, uint);
 void *memcpy(void *, const void *, uint);
 int getppid(void);
 int freemem(void);
+int lseek(int, int, int);
