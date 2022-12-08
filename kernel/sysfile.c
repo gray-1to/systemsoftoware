@@ -88,7 +88,6 @@ sys_write(void)
   
   argaddr(1, &p);
   argint(2, &n);
-  // TODO:ex1.2は以下をfが書き込み先ファイルになるように　f->typeをFD_PIPEにするか検討 kernel/file.c/filewrite参照
   if(argfd(0, 0, &f) < 0)
     return -1;
 
@@ -355,7 +354,6 @@ sys_open(void)
     f->major = ip->major;
   } else {
     f->type = FD_INODE;
-    // TODO:おそらくO_APPEND時にはf->offを適切にセットする
     f->off = 0;
   }
   f->ip = ip;
