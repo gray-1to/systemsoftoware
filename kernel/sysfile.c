@@ -534,9 +534,10 @@ sys_lseek(void) {
           case SEEK_CUR:
             f->off += offset;
             if(f->ip->size < f->off){
-              f->ip->size = f->off;
-              // char blank[4096] = "";
-              // write(f, blank, f->off - f->ip->size);
+              struct dirent de;
+              memset(&de, 0, sizeof(de));
+              if(writei(f->ip, 0, (uint64)&de, f->off - f->ip->size, sizeof(de)) != sizeof(de))
+                panic("unlink: writei");
             }
             break;
           case SEEK_END:
